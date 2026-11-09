@@ -86,6 +86,9 @@ var I = {
   chev:'<path d="m6 9 6 6 6-6"/>',
   heart:'<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.6 1-1.1a5.5 5.5 0 0 0 0-7.7Z"/>',
   user:'<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4.4-6 8-6s7 2 8 6"/>',
+  eye:'<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
+  eyeOff:'<path d="M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6C3.9 8.4 2 12 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18"/>',
+  mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
   logout:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/>'
 };
 function icon(n, sw){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="'+(sw||2)+'" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(I[n]||'')+'</svg>'; }
@@ -222,16 +225,20 @@ function updateTray(){
   $('#trayCompare').disabled = n<2; $('#trayCompare').style.opacity = n<2 ? .5 : 1;
 }
 $('#trayClear').addEventListener('click', function(){ selected = []; refreshBrowsers(); updateTray(); });
-$('#trayCompare').addEventListener('click', function(){ if (selected.length>=2) openCompare(); });
+$('#trayCompare').addEventListener('click', function(){ if (selected.length>=2) openCompare(null); });
 
 function cell(v){ return has(v) ? esc(v) : '<span class="na">Not available</span>'; }
 function linkCell(v, label){ var u = urls(v); if (u.length) return u.map(function(x,i){ return '<a href="'+esc(x)+'" target="_blank" rel="noopener noreferrer">'+label+(u.length>1?' '+(i+1):'')+'</a>'; }).join('<br>'); return has(v) ? '<span style="color:var(--muted)">'+esc(v)+'</span>' : '<span class="na">Not available</span>'; }
 
-function openCompare(){
-  var items = selected.map(byId).filter(Boolean);
+/* The comparison table can show either the Compare-page picks (default) or a separate list,
+   e.g. your favorites from the Profile page — so it never changes the other. */
+var cmpList = null;
+function openCompare(list){
+  if (list !== undefined) cmpList = list;          // a list = compare these; null = Compare-page picks
+  var items = (cmpList || selected).map(byId).filter(Boolean);
   if (items.length < 2) { closeModal($('#cmpOverlay')); return; }
   var anyV = items.some(function(p){ return p.type==='verified'; }), anyF = items.some(function(p){ return p.type==='fake'; });
-  var h = '<table class="cmp"><thead><tr><th class="lab"></th>';
+  var h = '<table class="cmp" style="--n:'+items.length+'"><colgroup><col class="lab-col">' + items.map(function(){ return '<col>'; }).join('') + '</colgroup><thead><tr><th class="lab"></th>';
   items.forEach(function(p){ h += '<td>'+esc(p.name)+'<div class="rm">'+pillHTML(p)+'<button data-rm="'+p.id+'">Remove</button></div></td>'; });
   h += '</tr></thead><tbody>';
   function row(label, fn){ h += '<tr><th class="lab">'+label+'</th>'; items.forEach(function(p){ h += '<td>'+fn(p)+'</td>'; }); h += '</tr>'; }
@@ -250,22 +257,28 @@ function openCompare(){
   row('Video Review', function(p){ return linkCell(p.youtubeLink, 'Watch'); });
   h += '</tbody></table>';
   var body = $('#cmpBody'); body.innerHTML = h;
-  $('#cmpSub').textContent = items.length + ' products side by side';
+  $('#cmpSub').textContent = cmpList ? 'Your ' + items.length + ' favorites, side by side' : items.length + ' products side by side';
   $$('[data-cimg]', body).forEach(function(el){ productImage(el, byId(+el.getAttribute('data-cimg')), false); });
-  $$('[data-rm]', body).forEach(function(b){ b.addEventListener('click', function(){ toggleSel(+b.getAttribute('data-rm')); if (selected.length<2) closeModal($('#cmpOverlay')); else openCompare(); }); });
+  $$('[data-rm]', body).forEach(function(b){ b.addEventListener('click', function(){
+    var id = +b.getAttribute('data-rm');
+    if (cmpList) cmpList = cmpList.filter(function(x){ return x !== id; }); else toggleSel(id);
+    if ((cmpList || selected).length < 2) closeModal($('#cmpOverlay')); else openCompare();
+  }); });
   if (!$('#cmpOverlay').classList.contains('show')) openModal('cmpOverlay');
 }
 
 /* ---------- Product cards ---------- */
 function buildCard(p, mode){
   var el = document.createElement('div');
-  el.className = 'card' + (isSel(p.id)?' selected':'');
+  var picked = mode==='compare' && isSel(p.id);
+  el.className = 'card' + (picked?' selected':'');
+  if (mode==='compare') el.setAttribute('data-sel-id', p.id);
   el.tabIndex = 0; el.setAttribute('role','button'); el.setAttribute('aria-label', p.name + ', ' + typeLabel(p) + ' — view details');
   var desc = p.type==='verified' ? (p.description || p.function) : (p.problem || p.claimedEffects);
   el.innerHTML = '<div class="thumb"><span class="badge '+p.type+'">'+icon(p.type==='verified'?'check':'alert',2.8)+typeLabel(p)+'</span><span class="check">'+icon('check',3)+'</span>'+favBtnHTML(p.id)+'</div>' +
     '<div class="card-body"><p class="card-name">'+esc(p.name)+'</p><p class="card-prod">'+esc(has(p.producer)?p.producer:'')+'</p><p class="card-desc">'+esc(desc||'')+'</p>' +
     '<div class="card-foot">' + (mode==='compare'
-      ? '<button class="sel-btn'+(isSel(p.id)?' on':'')+'" data-sel>'+(isSel(p.id)?'✓ Selected':'Select<span class="long"> to compare</span>')+'</button><button class="det-btn" data-det>Details</button>'
+      ? '<button class="sel-btn'+(isSel(p.id)?' on':'')+'" data-sel aria-pressed="'+isSel(p.id)+'">'+(isSel(p.id)?'✓ Selected':'Select<span class="long"> to compare</span>')+'</button><button class="det-btn" data-det>Details</button>'
       : '<span class="card-link">View details '+icon('arrow',2.4)+'</span>') + '</div></div>';
   productImage($('.thumb', el), p, true);
   el.addEventListener('click', function(e){
@@ -335,7 +348,16 @@ function makeBrowser(host){
   render();
   return { render: render, mode: mode };
 }
-function refreshBrowsers(){ browsers.forEach(function(b){ if (b.mode==='compare') b.render(); }); }
+/* Update selection marks in place — no re-render, so photos don't reload or flicker */
+function refreshBrowsers(){
+  $$('.card[data-sel-id]').forEach(function(el){
+    var on = isSel(+el.getAttribute('data-sel-id'));
+    if (el.classList.contains('selected') === on) return;
+    el.classList.toggle('selected', on);
+    var b = el.querySelector('.sel-btn');
+    if (b){ b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); b.innerHTML = on ? '✓ Selected' : 'Select<span class="long"> to compare</span>'; }
+  });
+}
 
 /* ---------- Series ---------- */
 var seriesGrid = $('#seriesGrid'), seriesTop = $('#seriesTop');
@@ -577,17 +599,17 @@ var Account = (function(){
   var LS_PROFILE = 'nutrx.localProfile', LS_SESSION = 'nutrx.localSession';
   // Google sign-in needs the site to be served from a web address (not opened as a local file)
   var mode = (FIREBASE_CONFIG && FIREBASE_CONFIG.apiKey && /^https?:$/.test(location.protocol)) ? 'firebase' : 'local';
-  var user = null, profile = null, fb = null, ready = false, listeners = [], mem = {};
+  var user = null, profile = null, fb = null, ready = false, listeners = [], mem = {}, pendingName = null;
   function lsGet(k){ try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch(e){ return mem[k] || null; } }
   function lsSet(k, v){ mem[k] = v; try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
-  function defaults(u){ return { name: u.displayName || '', email: u.email || '', photo: u.photoURL || '', ageRange: '', goals: [], allergies: '', favorites: [] }; }
+  function defaults(u){ return { name: u.displayName || pendingName || '', email: u.email || '', photo: u.photoURL || '', ageRange: '', goals: [], allergies: '', favorites: [] }; }
   function emit(){ listeners.forEach(function(f){ try { f(); } catch(e){ console.error(e); } }); }
-  function init(){
-    if (mode === 'firebase') return loadFirebase();
+  function initLocal(){
     var p = lsGet(LS_PROFILE);
     if (p && lsGet(LS_SESSION)) { profile = Object.assign(defaults({}), p); user = { uid: 'local', local: true }; }
     ready = true; emit();
   }
+  function init(){ if (mode === 'firebase') return loadFirebase(); initLocal(); }
   function loadFirebase(){
     var base = 'https://www.gstatic.com/firebasejs/10.12.2/';
     Promise.all([import(base+'firebase-app.js'), import(base+'firebase-auth.js'), import(base+'firebase-firestore.js')]).then(function(m){
@@ -595,7 +617,8 @@ var Account = (function(){
       fb = { A: m[1], F: m[2], auth: m[1].getAuth(app), db: m[2].getFirestore(app) };
       fb.A.onAuthStateChanged(fb.auth, function(u){
         if (!u){ user = null; profile = null; ready = true; emit(); return; }
-        user = { uid: u.uid, email: u.email };
+        var prov = (u.providerData && u.providerData[0] && u.providerData[0].providerId) || 'password';
+        user = { uid: u.uid, email: u.email, provider: prov, verified: !!u.emailVerified };
         var ref = fb.F.doc(fb.db, 'users', u.uid);
         fb.F.getDoc(ref).then(function(snap){
           if (snap.exists()) {
@@ -605,7 +628,7 @@ var Account = (function(){
         }).catch(function(){ profile = profile || defaults(u); toast('We couldn’t load your saved profile.'); })
           .then(function(){ ready = true; emit(); });
       });
-    }).catch(function(){ mode = 'local'; ready = true; emit(); });
+    }).catch(function(){ mode = 'local'; initLocal(); });   // Firebase unavailable (preview / blocked): fall back to the local profile
   }
   function signInGoogle(){
     if (mode !== 'firebase') return Promise.reject({ code: 'not-configured' });
@@ -613,6 +636,20 @@ var Account = (function(){
     var prov = new fb.A.GoogleAuthProvider(); prov.setCustomParameters({ prompt: 'select_account' });
     return fb.A.signInWithPopup(fb.auth, prov);
   }
+  function needFb(){ if (mode !== 'firebase') return Promise.reject({ code: 'not-configured' }); if (!fb) return Promise.reject({ code: 'loading' }); return null; }
+  function signUpEmail(name, email, pw){
+    var g = needFb(); if (g) return g;
+    pendingName = name;
+    return fb.A.createUserWithEmailAndPassword(fb.auth, email, pw).then(function(cred){
+      return fb.A.updateProfile(cred.user, { displayName: name }).catch(function(){}).then(function(){
+        fb.A.sendEmailVerification(cred.user).catch(function(){});
+        return cred;
+      });
+    });
+  }
+  function signInEmail(email, pw){ var g = needFb(); if (g) return g; return fb.A.signInWithEmailAndPassword(fb.auth, email, pw); }
+  function resetPassword(email){ var g = needFb(); if (g) return g; return fb.A.sendPasswordResetEmail(fb.auth, email); }
+  function resendVerification(){ var g = needFb(); if (g) return g; return fb.A.sendEmailVerification(fb.auth.currentUser); }
   function startLocal(name){
     var p = lsGet(LS_PROFILE) || defaults({});
     if (name) p.name = name;
@@ -637,11 +674,16 @@ var Account = (function(){
     return p.then(function(){ return on; }, function(err){ // roll back on failure
       profile.favorites = on ? profile.favorites.filter(function(x){ return x !== id; }) : [id].concat(profile.favorites); emit(); throw err; });
   }
-  function deleteAccount(){
+  function deleteAccount(password){
     if (!user) return Promise.resolve();
     if (user.local){ lsSet(LS_PROFILE, null); lsSet(LS_SESSION, null); user = null; profile = null; emit(); return Promise.resolve(); }
     var cu = fb.auth.currentUser, ref = fb.F.doc(fb.db, 'users', cu.uid);
     function delUser(){ return fb.A.deleteUser(cu); }
+    if (user.provider === 'password'){   // email accounts: confirm the password first, then delete
+      if (!password) return Promise.reject({ code: 'needs-password' });
+      return fb.A.reauthenticateWithCredential(cu, fb.A.EmailAuthProvider.credential(cu.email, password))
+        .then(function(){ return fb.F.deleteDoc(ref); }).then(delUser);
+    }
     return fb.F.deleteDoc(ref).then(delUser).catch(function(e){
       if (e && e.code === 'auth/requires-recent-login'){
         var prov = new fb.A.GoogleAuthProvider();
@@ -651,7 +693,7 @@ var Account = (function(){
     });
   }
   return {
-    init: init, deleteAccount: deleteAccount, on: function(f){ listeners.push(f); }, signInGoogle: signInGoogle, startLocal: startLocal, signOut: signOut,
+    init: init, deleteAccount: deleteAccount, signUpEmail: signUpEmail, signInEmail: signInEmail, resetPassword: resetPassword, resendVerification: resendVerification, on: function(f){ listeners.push(f); }, signInGoogle: signInGoogle, startLocal: startLocal, signOut: signOut,
     save: save, isFav: isFav, toggleFav: toggleFav,
     get user(){ return user; }, get profile(){ return profile; }, get mode(){ return mode; }, get ready(){ return ready; }
   };
@@ -667,44 +709,116 @@ function avatarHTML(size){
 /* Sign-in modal */
 var pendingFav = null;
 $('.g-logo').outerHTML = GOOGLE_G;
-function openSignin(reason){
-  $('#signinSub').textContent = reason || 'Save products and personalize your experience.';
-  $('#signinErr').classList.remove('show');
+var authTab = 'signin';
+function setAuthTab(t){
+  authTab = t;
+  $$('#signinOverlay [data-only]').forEach(function(el){ el.hidden = el.getAttribute('data-only') !== t; });
+  $$('#signinOverlay [data-tab]').forEach(function(b){ b.setAttribute('aria-selected', b.getAttribute('data-tab') === t); });
+  $('#signinTitle').textContent = t === 'signup' ? 'Create your account' : 'Welcome back';
+  if (!signinReason) $('#signinSub').textContent = t === 'signup' ? 'Save products and personalize your experience.' : 'Sign in to see your saved products.';
+  $('#emailSubmit').textContent = t === 'signup' ? 'Create account' : 'Sign in';
+  $('.lbl', $('#googleBtn')).textContent = t === 'signup' ? 'Sign up with Google' : 'Continue with Google';
+  $('#au-pw').setAttribute('autocomplete', t === 'signup' ? 'new-password' : 'current-password');
+  $('#pwMsg').textContent = t === 'signup' ? 'Use at least 8 characters.' : 'Please enter your password.';
+  clearAuthMsgs();
+}
+var signinReason = '';
+function clearAuthMsgs(){
+  $('#signinErr').classList.remove('show'); $('#signinNote').className = 'notice';
+  $$('#emailForm .field').forEach(function(f){ setErr(f, false); });
+}
+function authError(msg){ var e = $('#signinErr'); e.innerHTML = msg; e.classList.add('show'); linkify(e); var g = e.querySelector('[data-tab-go]'); if (g) g.addEventListener('click', function(){ setAuthTab(g.getAttribute('data-tab-go')); $('#au-pw').focus(); }); }
+function authMsg(c){
+  return ({
+    'auth/email-already-in-use': 'An account with this email already exists. <button type="button" class="link-sm" data-tab-go="signin">Sign in instead</button>',
+    'auth/invalid-email': 'That email address doesn’t look right.',
+    'auth/weak-password': 'Please choose a stronger password — at least 8 characters.',
+    'auth/missing-password': 'Please enter your password.',
+    'auth/invalid-credential': 'Email or password is incorrect.',
+    'auth/invalid-login-credentials': 'Email or password is incorrect.',
+    'auth/wrong-password': 'Email or password is incorrect.',
+    'auth/user-not-found': 'Email or password is incorrect.',
+    'auth/too-many-requests': 'Too many attempts. Please wait a few minutes and try again.',
+    'auth/user-disabled': 'This account has been turned off. Please contact us.',
+    'auth/operation-not-allowed': 'This sign-in method isn’t switched on yet. (Site owner: enable it in Firebase → Authentication → Sign-in method.)',
+    'auth/unauthorized-domain': 'This website’s address isn’t authorized for sign-in yet. (Site owner: add it in Firebase → Authentication → Settings → Authorized domains.)',
+    'auth/popup-blocked': 'Your browser blocked the sign-in window. Please allow pop-ups for this site and try again.',
+    'auth/operation-not-supported-in-this-environment': 'Sign-in isn’t available in this preview. Open the site from its web address to sign in.',
+    'auth/network-request-failed': 'Couldn’t connect. Check your internet connection (or turn off blockers for this site) and try again.',
+    'auth/internal-error': 'Couldn’t connect. Check your internet connection (or turn off blockers for this site) and try again.',
+    'loading': 'Still loading — please try again in a moment.'
+  })[c] || 'Something went wrong. Please try again.';
+}
+function openSignin(reason, tab){
+  signinReason = reason || '';
+  $('#signinSub').textContent = signinReason;
   $('#localBox').hidden = Account.mode !== 'local';
+  setAuthTab(tab || 'signin');
   if (typeof closeMobile === 'function') closeMobile();
   openModal('signinOverlay');
 }
-function afterSignIn(){
+function afterSignIn(isNew){
   closeModal($('#signinOverlay'));
-  toast('Welcome, ' + displayName().split(' ')[0] + '!');
+  $('#emailForm').reset(); setPwVisible(false);
+  toast(isNew ? 'Welcome to Nutrx, ' + displayName().split(' ')[0] + '! Check your inbox to verify your email.' : 'Welcome, ' + displayName().split(' ')[0] + '!');
   if (pendingFav !== null){ var id = pendingFav; pendingFav = null; if (!Account.isFav(id)) handleFav(id); }
 }
+function flashLocal(){ var lb = $('#localBox'); lb.hidden = false; lb.classList.remove('flash'); void lb.offsetWidth; lb.classList.add('flash'); $('#localName').focus(); }
+$$('#signinOverlay [data-tab]').forEach(function(b){ b.addEventListener('click', function(){ setAuthTab(b.getAttribute('data-tab')); }); });
+$$('#signinOverlay [data-tab-go]').forEach(function(b){ b.addEventListener('click', function(){ setAuthTab(b.getAttribute('data-tab-go')); var f = authTab === 'signup' ? $('#au-name') : $('#au-email'); f.focus(); }); });
+function setPwVisible(on){ var i = $('#au-pw'), t = $('#pwToggle'); i.type = on ? 'text' : 'password'; t.setAttribute('aria-pressed', on); t.setAttribute('aria-label', on ? 'Hide password' : 'Show password'); t.innerHTML = icon(on ? 'eyeOff' : 'eye'); }
+$('#pwToggle').addEventListener('click', function(){ setPwVisible($('#au-pw').type === 'password'); $('#au-pw').focus(); });
+$$('#emailForm .input').forEach(function(i){ i.addEventListener('input', function(){ setErr(i.closest('.field'), false); $('#signinErr').classList.remove('show'); }); });
+
 $('#googleBtn').addEventListener('click', function(){
-  var btn = this, err = $('#signinErr');
-  err.classList.remove('show');
-  if (Account.mode === 'local'){ var lb = $('#localBox'); lb.classList.remove('flash'); void lb.offsetWidth; lb.classList.add('flash'); $('#localName').focus(); return; }
+  var btn = this; clearAuthMsgs();
+  if (Account.mode === 'local'){ flashLocal(); return; }
   btn.disabled = true; $('.lbl', btn).textContent = 'Opening Google…';
-  Account.signInGoogle().then(function(){ waitForProfile(afterSignIn); }).catch(function(e){
+  Account.signInGoogle().then(function(){ waitForProfile(function(){ afterSignIn(false); }); }).catch(function(e){
     var c = e && e.code || '';
     if (window.console) console.warn('[Nutrx] Google sign-in error:', c, e && e.message);
     if (c === 'auth/popup-closed-by-user' || c === 'auth/cancelled-popup-request') return;
-    err.textContent = c === 'auth/unauthorized-domain' ? 'This website’s address isn’t authorized for Google sign-in yet. (Site owner: add it in Firebase → Authentication → Settings → Authorized domains.)'
-      : c === 'auth/popup-blocked' ? 'Your browser blocked the sign-in window. Please allow pop-ups for this site and try again.'
-      : c === 'loading' ? 'Still loading — please try again in a moment.'
-      : c === 'auth/operation-not-supported-in-this-environment' ? 'Google sign-in isn’t available in this preview. Open the site from its web address to sign in.'
-      : (c === 'auth/network-request-failed' || c === 'auth/internal-error') ? 'Couldn’t connect to Google sign-in. Check your connection (or turn off blockers for this site) and try again.'
-      : 'Sign-in didn’t work. Please try again.';
-    err.classList.add('show');
-  }).then(function(){ btn.disabled = false; $('.lbl', btn).textContent = 'Continue with Google'; });
+    authError(authMsg(c));
+  }).then(function(){ btn.disabled = false; setAuthTab(authTab); });
+});
+
+$('#emailForm').addEventListener('submit', function(e){
+  e.preventDefault(); clearAuthMsgs();
+  var signup = authTab === 'signup', ok = true;
+  var nm = $('#au-name').value.trim(), em = $('#au-email').value.trim(), pw = $('#au-pw').value;
+  if (signup && !nm){ setErr($('#au-name').closest('.field'), 1); ok = false; }
+  if (!EMAIL.test(em)){ setErr($('#au-email').closest('.field'), 1); ok = false; }
+  if (signup ? pw.length < 8 : !pw){ setErr($('#au-pw').closest('.field'), 1); ok = false; }
+  if (!ok){ var f = $('#emailForm .field.err .input'); if (f) f.focus(); return; }
+  if (Account.mode === 'local'){ flashLocal(); return; }
+  var btn = $('#emailSubmit'); btn.disabled = true; btn.innerHTML = '<span class="spin" style="width:16px;height:16px;border-width:2px"></span>' + (signup ? 'Creating account…' : 'Signing in…');
+  (signup ? Account.signUpEmail(nm, em, pw) : Account.signInEmail(em, pw)).then(function(){
+    waitForProfile(function(){ afterSignIn(signup); });
+  }).catch(function(err){
+    var c = err && err.code || '';
+    if (window.console) console.warn('[Nutrx] email ' + (signup ? 'sign-up' : 'sign-in') + ' error:', c, err && err.message);
+    authError(authMsg(c));
+  }).then(function(){ btn.disabled = false; btn.textContent = signup ? 'Create account' : 'Sign in'; });
+});
+
+$('#forgotBtn').addEventListener('click', function(){
+  clearAuthMsgs();
+  var em = $('#au-email').value.trim();
+  if (!EMAIL.test(em)){ setErr($('#au-email').closest('.field'), 1); $('#au-email').focus(); authError('Enter your email above, then tap “Forgot password?” again.'); return; }
+  if (Account.mode === 'local'){ flashLocal(); return; }
+  var b = this; b.disabled = true;
+  Account.resetPassword(em).then(function(){
+    var n = $('#signinNote'); n.className = 'notice show ok'; n.innerHTML = icon('mail') + '<span>If there’s an account for <b>' + esc(em) + '</b>, we’ve emailed a link to reset your password.</span>';
+  }, function(err){ authError(authMsg(err && err.code)); }).then(function(){ b.disabled = false; });
 });
 function waitForProfile(cb){ var n = 0; (function chk(){ if (Account.profile || n++ > 50) cb(); else setTimeout(chk, 100); })(); }
 $('#localForm').addEventListener('submit', function(e){
   e.preventDefault(); var n = $('#localName').value.trim();
   if (!n){ $('#localName').focus(); $('#localName').style.borderColor = 'var(--bad)'; return; }
-  Account.startLocal(n); afterSignIn();
+  Account.startLocal(n); afterSignIn(false);
 });
 $('#localName').addEventListener('input', function(){ this.style.borderColor = ''; });
-document.addEventListener('click', function(e){ var t = e.target.closest('[data-open-signin]'); if (t){ e.preventDefault(); openSignin(); } });
+document.addEventListener('click', function(e){ var t = e.target.closest('[data-open-signin],[data-open-signup]'); if (t){ e.preventDefault(); openSignin('', t.hasAttribute('data-open-signup') ? 'signup' : 'signin'); } });
 function doSignOut(){ setAcct(false); if (typeof closeMobile === 'function') closeMobile(); Account.signOut().then(function(){ toast('You’re signed out.'); }); }
 
 /* Favorites */
@@ -713,7 +827,7 @@ function updateFavButtons(){
   $$('[data-fav]').forEach(function(b){ var on = Account.isFav(+b.getAttribute('data-fav')); b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); b.setAttribute('aria-label', on ? 'Remove from favorites' : 'Save to favorites'); });
 }
 function handleFav(id, btn){
-  if (!Account.user){ pendingFav = id; openSignin('Sign in to save products to your favorites.'); return; }
+  if (!Account.user){ pendingFav = id; openSignin('Sign in or create a free account to save favorites.'); return; }
   if (btn){ btn.classList.remove('pop'); void btn.offsetWidth; btn.classList.add('pop'); }
   Account.toggleFav(id).then(function(on){ toast(on ? 'Saved to favorites' : 'Removed from favorites'); }, function(){ toast('Couldn’t update favorites. Please try again.'); });
 }
@@ -754,12 +868,12 @@ function renderProfile(full){
   if (!u || !p){
     profUid = null; head.className = 'band';
     head.innerHTML = '<span class="eyebrow">Your account</span><h1>Profile</h1><p>Sign in to see your saved products and profile.</p>';
-    body.innerHTML = '<div class="gate"><span data-icon="heart"></span><h2>Your favorites live here</h2><p>Sign in with Google to save products, keep your health goals handy, and compare your favorites in one tap.</p><button class="btn btn-teal" data-open-signin>Sign In</button></div>';
+    body.innerHTML = '<div class="gate"><span data-icon="heart"></span><h2>Your favorites live here</h2><p>Sign in to save products, keep your health goals handy, and compare your favorites in one tap.</p><div class="row-btns" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><button class="btn btn-teal" data-open-signin>Sign In</button><button class="btn btn-ghost" data-open-signup>Create account</button></div></div>';
     hydrateIcons(body); return;
   }
   head.className = 'band prof-band';
   head.innerHTML = avatarHTML(92) + '<div class="who"><h1>'+esc(displayName())+'</h1><p class="em">'+esc(u.local ? 'Saved in this browser only' : (p.email||''))+'</p>' +
-    '<span class="mode-pill">'+(u.local ? icon('info',2.2)+'Local profile' : GOOGLE_G.replace('<svg','<svg style="width:14px;height:14px"')+'Signed in with Google')+'</span></div>' +
+    '<span class="mode-pill">'+(u.local ? icon('info',2.2)+'Local profile' : u.provider === 'google.com' ? GOOGLE_G.replace('<svg','<svg style="width:14px;height:14px"')+'Signed in with Google' : icon('mail',2.2)+'Signed in with email')+'</span></div>' +
     '<button class="btn btn-ghost-light" data-signout>'+icon('logout')+'Sign out</button>';
   $$('[data-signout]', head).forEach(function(b){ b.addEventListener('click', doSignOut); });
   $$('.mode-pill svg', head).forEach(function(s){ s.style.width = '14px'; s.style.height = '14px'; });
@@ -768,7 +882,7 @@ function renderProfile(full){
     body.innerHTML = '<div class="prof-grid"><form class="card-form" id="profForm" novalidate>' +
       '<h2>Profile details</h2><p class="sub">Used to tailor suggestions. Only you can see this.</p>' +
       '<div class="field"><label for="p-name">Display name</label><input class="input" id="p-name" autocomplete="name"></div>' +
-      (u.local ? '' : '<div class="field"><label for="p-email">Email <span class="opt">(from Google)</span></label><input class="input" id="p-email" readonly style="background:var(--soft);color:var(--muted)"></div>') +
+      (u.local ? '' : '<div class="field"><label for="p-email">Email <span class="opt">('+(u.provider === 'google.com' ? 'from Google' : 'used to sign in')+')</span></label><input class="input" id="p-email" readonly style="background:var(--soft);color:var(--muted)">' + (u.provider === 'password' && !u.verified ? '<div class="verify-hint">'+icon('mail')+'<span>Not verified yet — check your inbox for the link.</span><button type="button" class="link-sm" id="resendVerify">Resend</button></div>' : '') + '</div>') +
       '<div class="field"><label for="p-age">Age range</label><select class="input" id="p-age"><option value="">Select…</option>'+AGES.map(function(a){ return '<option>'+a+'</option>'; }).join('')+'</select></div>' +
       '<div class="field"><label>Health goals <span class="opt">(pick any)</span></label><div class="goal-chips" id="p-goals">'+GOALS.map(function(g){ return '<button type="button" aria-pressed="false" data-goal="'+esc(g)+'">'+esc(g)+'</button>'; }).join('')+'</div></div>' +
       '<div class="field"><label for="p-allergy">Allergies &amp; sensitivities <span class="opt">(optional)</span></label><textarea class="input" id="p-allergy" style="min-height:90px" placeholder="e.g. soy, fish, caffeine"></textarea></div>' +
@@ -779,9 +893,10 @@ function renderProfile(full){
     $('#p-age').value = p.ageRange || ''; $('#p-allergy').value = p.allergies || '';
     $$('#p-goals button').forEach(function(b){ b.setAttribute('aria-pressed', (p.goals||[]).indexOf(b.getAttribute('data-goal')) !== -1); b.addEventListener('click', function(){ b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') !== 'true'); }); });
     linkify(body);
+    var rv = $('#resendVerify'); if (rv) rv.addEventListener('click', function(){ rv.disabled = true; Account.resendVerification().then(function(){ toast('Verification email sent.'); }, function(){ toast('Couldn’t send right now. Please try again later.'); rv.disabled = false; }); });
     $('#openDelete').addEventListener('click', function(){
-      var loc = Account.user && Account.user.local;
-      $('#delSigninItem').hidden = !!loc; $('#delReauth').hidden = !!loc;
+      var loc = Account.user && Account.user.local, pwUser = Account.user && Account.user.provider === 'password';
+      $('#delSigninItem').hidden = !!loc; $('#delReauth').hidden = !!loc || pwUser; $('#delPwField').hidden = !pwUser; $('#del-pw').value = '';
       $('#deleteErr').classList.remove('show'); openModal('deleteOverlay');
     });
     $('#profForm').addEventListener('submit', function(e){
@@ -808,7 +923,7 @@ function renderFavs(){
   items.forEach(function(p){ g.appendChild(buildCard(p, 'view')); });
   box.appendChild(g);
   var cb = $('#cmpFavs', box);
-  if (cb) cb.addEventListener('click', function(){ selected = ids.slice(0, MAX_COMPARE); refreshBrowsers(); navigate('/suggestions'); setTimeout(openCompare, 60); });
+  if (cb) cb.addEventListener('click', function(){ openCompare(ids.slice(0, MAX_COMPARE)); });
 }
 
 Account.on(function(){
@@ -847,11 +962,14 @@ function setupSpy(view){
 $('#confirmDelete').addEventListener('click', function(){
   var btn = this, err = $('#deleteErr'); err.classList.remove('show');
   btn.disabled = true; btn.textContent = 'Deleting…';
-  Account.deleteAccount().then(function(){
+  Account.deleteAccount($('#del-pw').value).then(function(){
     closeModal($('#deleteOverlay')); toast('Your account and saved data were deleted.'); navigate('/');
   }, function(e){
     var c = e && e.code || '';
     if (c === 'auth/popup-closed-by-user' || c === 'auth/cancelled-popup-request') err.textContent = 'Deletion cancelled — please confirm with Google to continue.';
+    else if (c === 'needs-password') { err.textContent = 'Please enter your password to confirm.'; $('#del-pw').focus(); }
+    else if (c === 'auth/invalid-credential' || c === 'auth/wrong-password' || c === 'auth/invalid-login-credentials') { err.textContent = 'That password isn’t right.'; $('#del-pw').focus(); }
+    else if (c === 'auth/too-many-requests') err.textContent = 'Too many attempts. Please wait a few minutes and try again.';
     else err.textContent = 'We couldn’t delete your account. Please try again, or contact us.';
     err.classList.add('show');
   }).then(function(){ btn.disabled = false; btn.textContent = 'Delete permanently'; });

@@ -340,7 +340,7 @@
       <h2 id="pp-summary">1. Summary</h2>
       <ul class="legal-points">
         <li>You can browse Nutrx without an account. We don’t run ads or advertising trackers.</li>
-        <li>If you sign in with Google, we receive only your <b>name, email address and profile photo</b>. We use them to create your account and show who is signed in.</li>
+        <li>If you create an account, we receive your <b>name and email address</b> — from Google if you choose “Continue with Google” (plus your profile photo), or from the sign-up form if you use an email and password. We use them to create your account and show who is signed in.</li>
         <li>We store what you choose to save — favorite products and optional profile details — so you can see them across devices.</li>
         <li>We do <b>not sell</b> your information, and we do not use Google user data for advertising.</li>
         <li>You can delete your account and saved data at any time from your <a href="/profile">profile page</a>.</li>
@@ -350,6 +350,8 @@
       <div class="legal-table-wrap"><table class="legal-table">
         <thead><tr><th>Information</th><th>When</th><th>Why we use it</th></tr></thead>
         <tbody>
+          <tr><td>Name and email address (email sign-up)</td><td>When you create an account with an email and password</td><td>To create and identify your account, and to send account emails such as email verification and password reset links</td></tr>
+          <tr><td>Password (email sign-up)</td><td>When you create an account or sign in with an email and password</td><td>Handled by Firebase Authentication to sign you in. We never see or store your password; Firebase keeps it only in a protected (hashed) form.</td></tr>
           <tr><td>Name, email address, profile photo (from Google)</td><td>When you choose “Continue with Google”</td><td>To create and identify your account and show your name and photo while you’re signed in</td></tr>
           <tr><td>Favorite products</td><td>When you tap the heart on a product</td><td>To show your saved list and let you compare favorites</td></tr>
           <tr><td>Optional profile details: display name, age range, health goals, allergies &amp; sensitivities</td><td>Only if you enter them on your profile page</td><td>To keep this information handy for you and tailor suggestions</td></tr>
@@ -363,7 +365,7 @@
       <h2 id="pp-google">3. How we access, use, store and share Google user data</h2>
       <p><b>What we access.</b> When you sign in with Google, we request only the basic sign-in permissions (<code>openid</code>, <code>email</code> and <code>profile</code>). This gives us your name, email address and profile photo URL. We do not request access to your Gmail, Google Drive, Contacts, Calendar or any other Google data.</p>
       <p><b>How we use it.</b> We use this information only to sign you in, create and identify your Nutrx account, display your name and photo in the site header and on your profile page, and link your favorites and profile details to your account.</p>
-      <p><b>How we store it.</b> Your account is managed by Google Firebase Authentication. Your name, email, photo URL, favorites and profile details are stored in a Google Cloud Firestore database that only your signed-in account can read or change.</p>
+      <p><b>How we store it.</b> Your account (whether you sign in with Google or with an email and password) is managed by Google Firebase Authentication. Your name, email, photo URL, favorites and profile details are stored in a Google Cloud Firestore database that only your signed-in account can read or change.</p>
       <p><b>How we share it.</b> We do not sell, rent or trade Google user data. We do not share it with third parties except (a) the service providers that run the Service on our behalf (Google Firebase), (b) when you ask us to, or (c) when required by law, to protect against fraud or abuse, or as part of a merger or acquisition with notice to you. We do not use Google user data for advertising, and we do not use it to train AI or machine-learning models. People at Nutrx do not read your data unless you ask us to (for example, for support), it is needed for security, or the law requires it.</p>
       <p class="legal-callout">Nutrx’s use and transfer of information received from Google APIs will adhere to the <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer">Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
 
@@ -379,7 +381,7 @@
       <h2 id="pp-share">5. Sharing &amp; service providers</h2>
       <p>We use a small number of providers to run Nutrx. They process information only to provide their service to us:</p>
       <ul>
-        <li><b>Google Firebase</b> (Authentication and Cloud Firestore): account sign-in and storage of your saved data.</li>
+        <li><b>Google Firebase</b> (Authentication and Cloud Firestore): account sign-in (Google or email and password), account emails such as verification and password-reset links, and storage of your saved data.</li>
         <li><b>FormSubmit</b> (formsubmit.co): delivers contact messages and product review submissions, including any photo you attach, to our email inbox.</li>
         <li><b>Google Fonts</b>: delivers the site’s typeface. Your browser contacts Google’s servers to load it.</li>
         <li><b>Our website host</b>: serves the site’s pages.</li>
@@ -452,7 +454,7 @@
       <p>You must be at least <span data-legal="minAge"></span> years old to create an account, or have permission from a parent or guardian where the law requires it.</p>
 
       <h2 id="tos-accounts">5. Accounts</h2>
-      <p>You can browse without an account. To save favorites and profile details you can sign in with Google. You are responsible for activity on your account and for keeping your Google account secure. You can delete your Nutrx account at any time from your <a href="/profile">profile page</a>. A “local profile” is stored only in your browser. Clearing your browser data removes it, and we can’t recover it.</p>
+      <p>You can browse without an account. To save favorites and profile details you can create an account with Google or with an email and password. Please give accurate information, keep your password private, and tell us if you think someone else has used your account. You are responsible for activity on your account. You can delete your Nutrx account at any time from your <a href="/profile">profile page</a>. A “local profile” is stored only in your browser. Clearing your browser data removes it, and we can’t recover it.</p>
 
       <h2 id="tos-submissions">6. Your submissions</h2>
       <p>When you send a message or submit a product for review (including photos and comments), you confirm that you have the right to share it. You give Nutrx a non-exclusive, royalty-free, worldwide license to use, store, reproduce and display it to review the product, operate and improve the Service, and publish findings about the product. We won’t publish your name or contact details without your permission. Don’t submit other people’s personal information or anything unlawful.</p>
@@ -554,21 +556,40 @@
 
 <div class="overlay" id="signinOverlay" role="dialog" aria-modal="true" aria-labelledby="signinTitle">
   <div class="modal narrow">
-    <div class="modal-head"><div><h2 id="signinTitle">Sign in to Nutrx</h2><p class="sub" id="signinSub">Save products and personalize your experience.</p></div><button class="x" data-close aria-label="Close"><span data-icon="x"></span></button></div>
+    <div class="modal-head"><div><h2 id="signinTitle">Welcome back</h2><p class="sub" id="signinSub">Sign in to see your saved products.</p></div><button class="x" data-close aria-label="Close"><span data-icon="x"></span></button></div>
     <div class="modal-body">
-      <ul class="signin-perks">
+      <div class="auth-tabs" role="tablist" aria-label="Sign in or create an account">
+        <button type="button" role="tab" id="tabSignin" data-tab="signin" aria-selected="true">Sign in</button>
+        <button type="button" role="tab" id="tabSignup" data-tab="signup" aria-selected="false">Create account</button>
+      </div>
+      <ul class="signin-perks" data-only="signup" hidden>
         <li><span data-icon="heart"></span>Save favorite products in one place</li>
         <li><span data-icon="user"></span>Keep your health goals &amp; allergies handy</li>
         <li><span data-icon="compare"></span>Compare your favorites in one tap</li>
       </ul>
       <button class="g-btn" id="googleBtn" type="button"><span class="g-logo"></span><span class="lbl">Continue with Google</span></button>
+      <div class="or">or</div>
+      <form id="emailForm" novalidate>
+        <div class="field" data-only="signup" hidden><label for="au-name">Full name</label><input class="input" id="au-name" autocomplete="name"><div class="msg">Please enter your name.</div></div>
+        <div class="field"><label for="au-email">Email</label><input class="input" id="au-email" type="email" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false"><div class="msg">Please enter a valid email address.</div></div>
+        <div class="field">
+          <div class="label-row"><label for="au-pw">Password</label><button type="button" class="link-sm" id="forgotBtn" data-only="signin">Forgot password?</button></div>
+          <div class="pw-wrap"><input class="input" id="au-pw" type="password" autocomplete="current-password"><button type="button" class="pw-toggle" id="pwToggle" aria-label="Show password" aria-pressed="false"><span data-icon="eye"></span></button></div>
+          <div class="pw-hint" data-only="signup" hidden>At least 8 characters.</div>
+          <div class="msg" id="pwMsg">Please enter your password.</div>
+        </div>
+        <button class="btn btn-teal" type="submit" id="emailSubmit" style="width:100%">Sign in</button>
+      </form>
       <div class="signin-err" id="signinErr" role="alert"></div>
+      <div class="notice" id="signinNote" role="status"></div>
+      <p class="switch-line" data-only="signin">New to Nutrx? <button type="button" class="link-sm" data-tab-go="signup">Create an account</button></p>
+      <p class="switch-line" data-only="signup" hidden>Already have an account? <button type="button" class="link-sm" data-tab-go="signin">Sign in</button></p>
       <div class="local-box" id="localBox" hidden>
-        <b>Google sign-in isn’t connected yet</b>
-        You can still try everything with a profile saved only in this browser.
+        <b>Sign-in isn’t available in this preview</b>
+        Google and email sign-in work on the live website. Here, you can try everything with a profile saved only in this browser.
         <form class="local-row" id="localForm"><input class="input" id="localName" placeholder="Your name" autocomplete="name" aria-label="Your name"><button class="btn btn-teal btn-sm" type="submit">Use local profile</button></form>
       </div>
-      <p class="signin-legal">We only use your name, email and profile photo from Google to create your account. By continuing, you agree to our <a href="/terms">Terms of Service</a> and <a href="/privacy">Privacy Policy</a>.</p>
+      <p class="signin-legal">By continuing, you agree to our <a href="/terms">Terms of Service</a> and <a href="/privacy">Privacy Policy</a>. With Google, we only use your name, email and profile photo.</p>
     </div>
   </div>
 </div>
@@ -580,6 +601,7 @@
       <p style="margin:0 0 10px;color:var(--ink-2)">We’ll permanently delete:</p>
       <ul class="del-list"><li>Your profile details (name, age range, goals, allergies)</li><li>Your saved favorites</li><li id="delSigninItem">Your Nutrx sign-in record</li></ul>
       <p id="delReauth" style="margin:0 0 16px;font-size:13.5px;color:var(--muted)">Google may ask you to confirm it’s you first.</p>
+      <div class="field" id="delPwField" hidden><label for="del-pw">Enter your password to confirm</label><input class="input" id="del-pw" type="password" autocomplete="current-password"></div>
       <div class="modal-btns"><button class="btn btn-ghost" data-close type="button">Cancel</button><button class="btn btn-danger" id="confirmDelete" type="button">Delete permanently</button></div>
       <div class="signin-err" id="deleteErr" role="alert"></div>
     </div>
