@@ -398,7 +398,7 @@ document.addEventListener('securitypolicyviolation', function(e){
   if (e.violatedDirective && /frame-src|child-src|default-src/.test(e.violatedDirective) && /bubble|pdf/i.test(e.blockedURI||'')) { pdfBlocked = true; showPdfFallback(); }
 });
 function openPdf(d){
-  var url = cleanUrl(d.url);
+  var url = asset(cleanUrl(d.url));
   $('#pdfTitle').textContent = d.title;
   $('#pdfSub').textContent = d.category + ' · ' + d.subtitle;
   $('#pdfOpen').href = url; $('#pdfFallbackOpen').href = url;
